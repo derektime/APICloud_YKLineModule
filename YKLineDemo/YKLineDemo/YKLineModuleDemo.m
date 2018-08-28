@@ -38,20 +38,28 @@
 
 - (void)addKLine:(NSDictionary *)paramDict {
     
-    self.sourceDict = [[NSDictionary alloc]initWithDictionary:paramDict];
-    
-    [self stockDatasWithIndex:0];
+    _cbId = [paramDict integerValueForKey:@"cbId" defaultValue:0];
     
     CGFloat x = [paramDict floatValueForKey:@"x" defaultValue:0.0];
     CGFloat y = [paramDict floatValueForKey:@"y" defaultValue:0.0];
     CGFloat w = [paramDict floatValueForKey:@"w" defaultValue:0.0];
     CGFloat h = [paramDict floatValueForKey:@"h" defaultValue:0.0];
-    [_stockChartView setFrame:CGRectMake(x, y, w, h)];
+    [self.stockChartView setFrame:CGRectMake(x, y, w, h)];
+    
+    [self stockDatasWithIndex:0];
     
     NSString *fixedOn = [paramDict stringValueForKey:@"fixedOn" defaultValue:nil];
     BOOL fixed = [paramDict boolValueForKey:@"fixed" defaultValue:YES];
     [self addSubview:_stockChartView fixedOn:fixedOn fixed:fixed];
     
+}
+
+/*
+ * self.type: @"minutesList" @"dayList" @"weeksList" @"monthList"
+ */
+- (void)getDataList:(NSDictionary *)paramDict {
+    NSArray *list = [paramDict arrayValueForKey:self.type defaultValue:@[]];
+    [self reloadData:list];
 }
 
 - (NSMutableDictionary<NSString *,Y_KLineGroupModel *> *)modelsDict
@@ -64,6 +72,7 @@
 
 -(id) stockDatasWithIndex:(NSInteger)index
 {
+    [self.stockChartView setUserInteractionEnabled:NO];
     NSString *type;
     switch (index) {
             
@@ -100,32 +109,31 @@
     self.type = type;
     if(![self.modelsDict objectForKey:type])
     {
-        [self reloadData];
+        [self sendResultEventWithCallbackId:_cbId dataDict:@{@"type" : type} errDict:nil doDelete:NO];
     } else {
+        [self.stockChartView setUserInteractionEnabled:YES];
         return [self.modelsDict objectForKey:type].models;
     }
     return nil;
 }
 
-- (void)reloadData
+- (void)reloadData:(NSArray*)dataArray
 {
-    if (self.sourceDict == nil) {
+    NSLog(@"dataArray %@",dataArray);
+    
+    [self.stockChartView setUserInteractionEnabled:YES];
+    
+    if (dataArray == nil || dataArray.count == 0) {
         return;
     }
     
-    NSArray *dataList = [self.sourceDict arrayValueForKey:self.type defaultValue:@[]];
-    
     NSMutableArray *mDataList = [NSMutableArray new];
-    [mDataList addObjectsFromArray:dataList];
+    [mDataList addObjectsFromArray:dataArray];
     
-    NSLog(@"dataList %@",dataList);
-    
-    if (dataList.count < 10){
+    if (mDataList.count < 10){
         for (int i = 0; i < 20; i++){
-            [mDataList addObjectsFromArray:dataList];
-        }
-        UIAlertView *alert = [[UIAlertView alloc] initWithTitle:nil message:[NSString stringWithFormat:@"#1#\n%@",dataList] delegate:self cancelButtonTitle:@"取消" otherButtonTitles:@"确定", nil];
-        [alert show];  //小于10条不能成图
+            [mDataList addObjectsFromArray:dataArray];
+        }//小于10条不能成图
     }
     
     Y_KLineGroupModel *groupModel = [Y_KLineGroupModel objectWithArray:mDataList];
@@ -149,5 +157,6 @@
     }
     return _stockChartView;
 }
+
 
 @end
